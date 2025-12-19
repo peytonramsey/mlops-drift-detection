@@ -229,7 +229,6 @@ Before deploying to production:
 This is a portfolio project and not deployed to production. However, if you find security vulnerabilities:
 
 1. **DO NOT** open a public GitHub issue
-2. Email: [your-security-email@example.com]
 3. Provide: Description, steps to reproduce, potential impact
 4. Allow: 90 days for response before public disclosure
 
