@@ -1,0 +1,70 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Data (exclude raw data, keep processed)
+data/raw/
+notebooks/
+*.ipynb
+.ipynb_checkpoints
+
+# Logs and databases
+*.log
+*.db
+*.sqlite
+*.sqlite3
+predictions.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Temporary files
+*.tmp
+*.bak
+requirements_full.txt
+openapi_output*.json
+check_routes.py
+test_*.py
+
+# MLflow artifacts
+mlruns/
+mlartifacts/

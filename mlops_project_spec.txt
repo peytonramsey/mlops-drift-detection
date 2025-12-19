@@ -1,0 +1,265 @@
+# Project: Production ML Model Monitoring & Drift Detection Platform
+
+## Overview
+Build a complete MLOps platform that deploys a machine learning model, monitors it for data drift and performance degradation, and automatically retrains when drift is detected. This project demonstrates production ML engineering skills.
+
+## Business Use Case
+Deploy a customer churn prediction model for a subscription business. Monitor the model in production, detect when customer behavior patterns change (data drift), and automatically retrain the model to maintain performance.
+
+## Technical Requirements
+
+### Core Components:
+1. **ML Model Service (FastAPI)**
+   - Train a binary classification model (churn prediction) on customer data
+   - Deploy model via REST API with /predict endpoint
+   - Log all predictions and input features to database
+   - Support model versioning (champion/challenger)
+   - Implement A/B testing capability (route % traffic to different models)
+
+2. **Drift Detection Engine**
+   - Calculate Population Stability Index (PSI) for each feature
+   - Detect data drift using statistical tests (KS test, chi-squared)
+   - Monitor prediction distribution drift
+   - Track model performance metrics (when ground truth available)
+   - Alert when drift thresholds exceeded
+
+3. **Monitoring Dashboard (Streamlit)**
+   - Real-time metrics display:
+     * Feature drift scores (PSI values)
+     * Prediction distribution over time
+     * Model performance metrics (accuracy, precision, recall, F1)
+     * API latency (p50, p95, p99)
+     * Request volume
+   - Visualization of feature distributions (training vs production)
+   - Alert history and current status
+   - Manual retrain trigger button
+
+4. **Automated Retraining Pipeline (Airflow or Prefect)**
+   - Triggered by drift detection or manual request
+   - Fetch latest production data from database
+   - Apply feature engineering pipeline
+   - Train new model with MLflow experiment tracking
+   - Validate model on holdout set
+   - If validation passes, deploy as "challenger" model
+   - Run A/B test between champion and challenger
+   - Promote challenger to champion if it outperforms
+
+5. **Model Registry (MLflow)**
+   - Version all trained models
+   - Track hyperparameters, metrics, artifacts
+   - Store model metadata (training date, data version, performance)
+   - Enable model rollback
+
+## Tech Stack
+- **Language:** Python 3.10+
+- **ML:** scikit-learn, pandas, numpy
+- **API:** FastAPI, uvicorn
+- **Database:** PostgreSQL (for logging) + SQLite (for development)
+- **Drift Detection:** Evidently AI library (or implement custom PSI/KS tests)
+- **Model Registry:** MLflow
+- **Orchestration:** Prefect (easier than Airflow for this project)
+- **Dashboard:** Streamlit
+- **Containerization:** Docker + Docker Compose
+- **Testing:** pytest
+- **CI/CD:** GitHub Actions
+
+## Dataset
+Use Telco Customer Churn dataset (available on Kaggle or generate synthetic data). Features:
+- Customer demographics (age, gender, location)
+- Service usage (tenure, monthly charges, contract type)
+- Target: Churn (binary: Yes/No)
+
+Create synthetic data drift scenarios:
+- Shift feature distributions over time
+- Add new categorical values
+- Change class balance
+
+## Project Structure
+```
+mlops-drift-detection/
+├── data/
+│   ├── raw/
+│   ├── processed/
+│   └── synthetic_drift_generator.py
+├── src/
+│   ├── models/
+│   │   ├── train.py
+│   │   ├── predict.py
+│   │   └── model_utils.py
+│   ├── api/
+│   │   ├── main.py (FastAPI app)
+│   │   ├── schemas.py (Pydantic models)
+│   │   └── database.py
+│   ├── monitoring/
+│   │   ├── drift_detector.py
+│   │   ├── metrics_calculator.py
+│   │   └── alerting.py
+│   ├── retraining/
+│   │   ├── pipeline.py (Prefect workflow)
+│   │   └── model_validator.py
+│   └── dashboard/
+│       └── app.py (Streamlit dashboard)
+├── tests/
+├── docker/
+│   ├── Dockerfile.api
+│   ├── Dockerfile.dashboard
+│   └── docker-compose.yml
+├── mlruns/ (MLflow)
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── requirements.txt
+└── README.md
+```
+
+## Implementation Plan (8 Weeks)
+
+### Week 1: Foundation
+- Set up project structure and environment
+- Implement basic ML model training pipeline
+- Create train/validation/test splits
+- Train baseline Random Forest or XGBoost model
+- Track experiments with MLflow
+- Achieve ~85%+ accuracy
+
+### Week 2: API Development
+- Build FastAPI prediction service
+- Create Pydantic schemas for request/response
+- Implement database logging (PostgreSQL)
+- Store: timestamp, features, prediction, model_version
+- Add model loading from MLflow registry
+- Test API with Postman/curl
+
+### Week 3: Drift Detection Core
+- Implement PSI calculation for numerical features
+- Implement chi-squared test for categorical features
+- Create baseline statistics from training data
+- Build drift detection engine that compares production data to baseline
+- Set alert thresholds (PSI > 0.25, KS test p-value < 0.05)
+- Log drift metrics to database
+
+### Week 4: Monitoring Dashboard (Part 1)
+- Build Streamlit dashboard with multiple pages:
+  * Overview page: Key metrics, alerts, model status
+  * Feature Drift page: PSI scores, distribution plots
+  * Model Performance page: Confusion matrix, ROC curve (when labels available)
+  * Logs page: Recent predictions, data quality issues
+- Real-time updates (refresh every 60 seconds)
+- Visualizations using Plotly
+
+### Week 5: Monitoring Dashboard (Part 2) + Alerting
+- Add time-series plots showing drift over time
+- Implement alert system:
+  * Email alerts using SMTP
+  * Slack webhooks (optional)
+  * Alert severity levels (INFO, WARNING, CRITICAL)
+- Alert history page in dashboard
+- Add manual model retrain trigger button
+
+### Week 6: Automated Retraining Pipeline
+- Set up Prefect for orchestration
+- Create retraining workflow:
+  * Task 1: Check if retraining needed (drift threshold exceeded)
+  * Task 2: Fetch latest data from production database
+  * Task 3: Prepare training data (feature engineering)
+  * Task 4: Train new model
+  * Task 5: Validate model (compare to champion)
+  * Task 6: Deploy as challenger if validation passes
+- Implement A/B testing logic (route 10% to challenger, 90% to champion)
+- Schedule workflow to run daily
+
+### Week 7: A/B Testing + Champion/Challenger
+- Modify API to support multiple model versions
+- Implement traffic routing based on percentage
+- Track performance metrics for both models
+- Build comparison dashboard showing champion vs challenger metrics
+- Automatic promotion: if challenger accuracy > champion by 2% and stable for 3 days → promote
+
+### Week 8: Production Readiness + Documentation
+- Dockerize all components
+- Create docker-compose.yml for local deployment
+- Write comprehensive README with architecture diagram
+- Add unit tests (pytest) for drift detection, API endpoints
+- Set up GitHub Actions CI/CD:
+  * Run tests on every push
+  * Build Docker images
+  * Deploy to staging (optional)
+- Performance optimization: add Redis caching for predictions
+- Security: add API key authentication
+
+## Key Metrics to Track
+1. **Data Drift Metrics:**
+   - PSI for each feature (target: <0.1 stable, 0.1-0.25 moderate, >0.25 alert)
+   - KS statistic for numerical features
+   - Chi-squared for categorical features
+
+2. **Model Performance:**
+   - Accuracy, Precision, Recall, F1 score
+   - AUC-ROC
+   - Confusion matrix
+   - Track over time (daily, weekly aggregates)
+
+3. **Operational Metrics:**
+   - Prediction latency (p50, p95, p99)
+   - Requests per second
+   - Error rate
+   - Model load time
+
+4. **Business Metrics:**
+   - Cost per prediction
+   - Retraining frequency
+   - Drift incidents per month
+
+## Synthetic Drift Scenarios to Simulate
+Create scripts to inject drift into production data:
+
+1. **Gradual Drift:** Slowly shift feature means over 30 days
+2. **Sudden Drift:** Abrupt distribution change (simulate market shock)
+3. **Concept Drift:** Change relationship between features and target
+4. **Seasonal Drift:** Cyclical patterns in data
+
+## Bonus Features (If Time Permits)
+- Feature importance tracking over time (detect which features drift most)
+- Prediction explanations using SHAP values
+- Multi-model ensemble support
+- Kubernetes deployment instead of Docker Compose
+- Cost tracking (log API compute costs)
+- Data quality dashboard (missing values, outliers, schema violations)
+
+## Success Criteria
+- ✅ Model deployed via API with <100ms latency
+- ✅ Drift detection catches PSI > 0.25 within 1 hour
+- ✅ Automated retraining completes in <10 minutes
+- ✅ Dashboard loads in <2 seconds with live data
+- ✅ A/B testing successfully promotes better model
+- ✅ 80%+ test coverage
+- ✅ Complete documentation with architecture diagrams
+
+## Interview Talking Points
+When discussing this project:
+1. **Problem:** "95% of ML models degrade in production without anyone noticing. I built a system that detects this automatically."
+2. **Scale:** "Handles 1000+ predictions/hour with real-time monitoring"
+3. **Impact:** "Reduces manual monitoring time by 40 hours/month and catches drift 2-3 weeks earlier"
+4. **Technical Depth:** "Implemented custom PSI calculations, A/B testing infrastructure, and automated retraining pipelines"
+5. **Production Skills:** "Containerized with Docker, CI/CD with GitHub Actions, deployed with FastAPI"
+
+## Getting Started
+1. Create virtual environment: `python -m venv venv`
+2. Activate: `source venv/bin/activate`
+3. Install dependencies: `pip install -r requirements.txt`
+4. Download Telco Churn dataset or generate synthetic data
+5. Train baseline model: `python src/models/train.py`
+6. Start API: `uvicorn src.api.main:app --reload`
+7. Start dashboard: `streamlit run src/dashboard/app.py`
+8. Generate synthetic traffic with drift: `python scripts/simulate_drift.py`
+
+## Repository README Must Include
+- Problem statement and business value
+- Architecture diagram (use draw.io or mermaid)
+- Demo GIFs showing drift detection in action
+- Setup instructions
+- API documentation
+- Performance benchmarks
+- Future improvements
+
+Begin with Week 1 tasks. Create the project structure, set up MLflow, and train a baseline model. Focus on code quality and documentation from the start.

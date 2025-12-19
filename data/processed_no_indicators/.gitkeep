@@ -1,0 +1,3 @@
+# This directory will contain processed training data
+# Files are excluded from git due to size (>100MB)
+# Run the preprocessing script to generate them

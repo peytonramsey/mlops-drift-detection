@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(mkdir:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(cat:*)",
+      "Bash(uvicorn:*)",
+      "Bash(curl:*)",
+      "Bash(find:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(pip freeze:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}
