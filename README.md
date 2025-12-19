@@ -305,14 +305,6 @@ uvicorn src.api.main:app --reload
 - [ ] Model explainability (SHAP values)
 - [ ] Cloud deployment (AWS/GCP/Azure)
 
-## License
-
-MIT License
-
-## Contact
-
-For questions or collaboration opportunities, please reach out via [your-email@example.com] or [LinkedIn](https://linkedin.com/in/yourprofile).
-
 ## Acknowledgments
 
 - Dataset: Loan Default Dataset from [source]
