@@ -4,6 +4,8 @@ FastAPI application for loan default prediction
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 import joblib
 import pandas as pd
@@ -41,6 +43,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files directory
+static_path = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_path):
+    app.mount("/static", StaticFiles(directory=static_path), name="static")
 
 # Global model and preprocessor
 MODEL = None
@@ -94,19 +101,24 @@ async def startup_event():
         print(f"WARNING: Drift detector failed to initialize: {e}")
 
 
-@app.get("/", response_model=dict)
+@app.get("/", response_class=HTMLResponse)
 def root():
-    """Root endpoint."""
-    return {
-        "message": "Loan Default Prediction API",
-        "version": "1.0.0",
-        "endpoints": {
-            "health": "/health",
-            "predict": "/predict",
-            "batch_predict": "/predict/batch",
-            "docs": "/docs"
+    """Root endpoint - serves the web interface."""
+    html_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
+    if os.path.exists(html_path):
+        with open(html_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    else:
+        return {
+            "message": "Loan Default Prediction API",
+            "version": "1.0.0",
+            "endpoints": {
+                "health": "/health",
+                "predict": "/predict",
+                "batch_predict": "/predict/batch",
+                "docs": "/docs"
+            }
         }
-    }
 
 
 @app.get("/health", response_model=HealthResponse)
