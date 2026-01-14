@@ -13,7 +13,8 @@
       "Bash(netstat:*)",
       "Bash(taskkill:*)",
       "Bash(pip freeze:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(git push:*)"
     ]
   }
 }
