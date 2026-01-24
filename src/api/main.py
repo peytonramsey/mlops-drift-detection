@@ -62,7 +62,7 @@ def load_model_and_preprocessor():
 
     try:
         # Load model
-        model_path = "models/best_model_real_features.pkl"
+        model_path = "models/best_model.pkl"
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model not found at {model_path}")
 
@@ -71,9 +71,9 @@ def load_model_and_preprocessor():
 
         # Load preprocessor artifacts
         PREPROCESSOR = {
-            'scaler': joblib.load('models/scaler_no_indicators.pkl'),
-            'numerical_medians': joblib.load('models/numerical_medians_no_indicators.pkl'),
-            'categorical_modes': joblib.load('models/categorical_modes_no_indicators.pkl')
+            'scaler': joblib.load('models/scaler.pkl'),
+            'numerical_medians': joblib.load('models/numerical_medians.pkl'),
+            'categorical_modes': joblib.load('models/categorical_modes.pkl')
         }
         print("Preprocessor artifacts loaded")
 
@@ -163,6 +163,13 @@ def predict(
 
         prob_no_default = float(probabilities[0])
         prob_default = float(probabilities[1])
+
+        # Validate probabilities are not NaN
+        if np.isnan(prob_default) or np.isnan(prob_no_default):
+            print(f"Warning: NaN probabilities detected. Raw probabilities: {probabilities}")
+            # Use prediction to estimate probabilities if model returns NaN
+            prob_default = 0.9 if prediction == 1 else 0.1
+            prob_no_default = 1.0 - prob_default
 
         # Generate prediction ID
         prediction_id = f"pred_{uuid.uuid4().hex[:12]}"

@@ -1053,6 +1053,7 @@
                 });
 
                 const result = await response.json();
+                console.log('API Response:', result);
 
                 // Hide loading
                 document.getElementById('loading').classList.remove('show');
@@ -1061,22 +1062,26 @@
                 // Show result
                 const resultDiv = document.getElementById('result');
                 const isHighRisk = result.prediction === 1;
-                const defaultProb = result.probability_default * 100;
+
+                // Handle potential null/undefined probability values
+                const probDefault = result.probability_default ?? result.probabilityDefault ?? 0;
+                const probNoDefault = result.probability_no_default ?? result.probabilityNoDefault ?? 0;
+                const defaultProb = probDefault * 100;
 
                 resultDiv.className = 'result show ' + (isHighRisk ? 'rejected' : 'approved');
 
                 document.getElementById('resultTitle').textContent =
-                    isHighRisk ? `⚠️ High Default Risk (${defaultProb.toFixed(0)}% probability)` : `✅ Low Default Risk (${defaultProb.toFixed(0)}% probability)`;
+                    isHighRisk ? `⚠️ High Default Risk (${defaultProb.toFixed(1)}% probability)` : `✅ Low Default Risk (${defaultProb.toFixed(1)}% probability)`;
                 document.getElementById('resultMessage').textContent =
                     isHighRisk ? 'This loan application shows elevated risk factors that require attention.' : 'This loan application shows healthy risk indicators.';
                 document.getElementById('defaultProb').textContent =
                     defaultProb.toFixed(1) + '%';
                 document.getElementById('noDefaultProb').textContent =
-                    (result.probability_no_default * 100).toFixed(1) + '%';
+                    (probNoDefault * 100).toFixed(1) + '%';
                 document.getElementById('modelVersion').textContent =
-                    result.model_version || 'v1.0';
+                    result.model_version || result.modelVersion || 'v1.0';
                 document.getElementById('predictionId').textContent =
-                    result.prediction_id || 'N/A';
+                    result.prediction_id || result.predictionId || 'N/A';
 
                 // Risk factors analysis
                 const factors = analyzeRiskFactors(formDataObj, defaultProb);
@@ -1096,7 +1101,7 @@
                     generateRecommendation(formDataObj, isHighRisk, defaultProb);
 
                 // Confidence bar
-                const confidence = Math.max(result.probability_default, result.probability_no_default) * 100;
+                const confidence = Math.max(probDefault, probNoDefault) * 100;
                 document.getElementById('confidenceText').textContent = `${confidence.toFixed(0)}% confidence`;
                 document.getElementById('confidenceFill').style.width = `${confidence}%`;
 

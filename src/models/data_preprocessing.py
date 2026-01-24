@@ -1,6 +1,6 @@
 """
-Data Preprocessing Pipeline for Loan Default Prediction
-Handles missing values, feature engineering, encoding, and train/test splits
+Data Preprocessing Pipeline
+Handles missing values, encoding, and scaling for loan default prediction
 """
 
 import pandas as pd
@@ -13,58 +13,33 @@ import os
 
 class LoanDataPreprocessor:
     """
-    Preprocessing pipeline for loan default dataset.
-    Handles missing values with indicators, encoding, and scaling.
+    Preprocessing pipeline for loan default prediction.
+    Handles missing values, encoding, and feature scaling.
     """
 
     def __init__(self):
         self.scaler = StandardScaler()
-        self.categorical_mappings = {}
         self.numerical_medians = {}
         self.categorical_modes = {}
 
-    def create_missing_indicators(self, df):
-        """
-        Create binary indicators for missing values.
-        CRITICAL: Missing data is highly predictive (72.58% default rate)!
-        """
-        print("Creating missing value indicators...")
-
-        missing_indicator_cols = [
-            'property_value', 'LTV', 'rate_of_interest',
-            'Interest_rate_spread', 'Upfront_charges',
-            'dtir1', 'income'
-        ]
-
-        for col in missing_indicator_cols:
-            if col in df.columns:
-                df[f'{col}_missing'] = df[col].isna().astype(int)
-                print(f"  - {col}_missing: {df[f'{col}_missing'].sum()} rows")
-
-        return df
-
     def handle_income_zero(self, df):
         """
-        Handle income = 0 (99.37% default rate!).
-        Treat as missing data since it's likely a data quality issue.
+        Handle income = 0 by treating as missing (but don't create indicator).
         """
         print("Handling income = 0...")
-
         zero_count = (df['income'] == 0).sum()
         if zero_count > 0:
-            df['income_is_zero'] = (df['income'] == 0).astype(int)
             df['income'] = df['income'].replace(0, np.nan)
-            print(f"  - Found {zero_count} rows with income=0, created indicator")
-
+            print(f"  - Found {zero_count} rows with income=0, treating as NaN")
         return df
 
     def drop_high_missing_columns(self, df):
         """
-        Drop columns with >25% missing values that are less critical.
+        Drop columns with >25% missing values.
         """
         print("Dropping high-missing columns...")
 
-        cols_to_drop = ['Upfront_charges']
+        cols_to_drop = ['Upfront_charges', 'rate_of_interest', 'Interest_rate_spread']
         existing_cols = [col for col in cols_to_drop if col in df.columns]
 
         if existing_cols:
@@ -80,9 +55,8 @@ class LoanDataPreprocessor:
         print("Imputing numerical features...")
 
         numerical_cols = [
-            'rate_of_interest', 'Interest_rate_spread',
-            'dtir1', 'property_value', 'LTV', 'income',
-            'loan_amount', 'term', 'age', 'Credit_Score', 'total_units'
+            'dtir1', 'property_value', 'LTV', 'income', 'loan_amount',
+            'term', 'age', 'Credit_Score', 'total_units', 'loan_limit'
         ]
 
         for col in numerical_cols:
@@ -121,7 +95,7 @@ class LoanDataPreprocessor:
 
     def drop_remaining_nulls(self, df):
         """
-        Drop rows with remaining nulls (should be <0.5% of data).
+        Drop rows with remaining nulls.
         """
         initial_rows = len(df)
         df = df.dropna()
@@ -132,16 +106,48 @@ class LoanDataPreprocessor:
 
         return df
 
+    def create_engineered_features(self, df):
+        """
+        Create useful engineered features.
+        """
+        print("Creating engineered features...")
+
+        # Debt to income ratio (if not already present and dtir1 is missing)
+        if 'dtir1' in df.columns and 'loan_amount' in df.columns and 'income' in df.columns:
+            # Calculate our own DTI where it might be missing
+            calculated_dti = (df['loan_amount'] / df['income'].replace(0, np.nan)) * 100
+            df['calculated_dti'] = calculated_dti
+            print("  - Created calculated_dti")
+
+        # Loan to property value ratio
+        if 'loan_amount' in df.columns and 'property_value' in df.columns:
+            df['loan_to_property'] = df['loan_amount'] / df['property_value'].replace(0, 1)
+            print("  - Created loan_to_property")
+
+        # Income to property ratio
+        if 'income' in df.columns and 'property_value' in df.columns:
+            df['income_to_property'] = df['income'] / df['property_value'].replace(0, 1)
+            print("  - Created income_to_property")
+
+        # Monthly payment estimate (approximate)
+        if 'loan_amount' in df.columns and 'term' in df.columns:
+            df['monthly_payment_est'] = df['loan_amount'] / df['term'].replace(0, 1)
+            print("  - Created monthly_payment_est")
+
+        # Payment to income ratio
+        if 'monthly_payment_est' in df.columns and 'income' in df.columns:
+            df['payment_to_income'] = df['monthly_payment_est'] / (df['income'].replace(0, 1) / 12)
+            print("  - Created payment_to_income")
+
+        return df
+
     def encode_categorical(self, df, fit=True):
         """
         One-hot encode categorical variables.
         """
         print("Encoding categorical features...")
 
-        # Identify categorical columns (exclude target and ID)
         categorical_cols = df.select_dtypes(include=['object']).columns.tolist()
-
-        # Remove ID and Status if present
         categorical_cols = [col for col in categorical_cols if col not in ['ID', 'Status']]
 
         if categorical_cols:
@@ -153,11 +159,9 @@ class LoanDataPreprocessor:
     def scale_features(self, df, target_col='Status', fit=True):
         """
         Scale numerical features using StandardScaler.
-        Note: Not strictly necessary for tree-based models but good practice.
         """
         print("Scaling numerical features...")
 
-        # Separate features and target
         if target_col in df.columns:
             X = df.drop(columns=[target_col, 'ID'], errors='ignore')
             y = df[target_col]
@@ -165,20 +169,16 @@ class LoanDataPreprocessor:
             X = df.drop(columns=['ID'], errors='ignore')
             y = None
 
-        # Get numerical columns (excluding binary indicators)
         numerical_cols = X.select_dtypes(include=[np.number]).columns.tolist()
-        binary_cols = [col for col in numerical_cols if col.endswith('_missing') or col == 'income_is_zero']
-        cols_to_scale = [col for col in numerical_cols if col not in binary_cols]
 
-        if cols_to_scale:
+        if numerical_cols:
             if fit:
-                X[cols_to_scale] = self.scaler.fit_transform(X[cols_to_scale])
+                X[numerical_cols] = self.scaler.fit_transform(X[numerical_cols])
             else:
-                X[cols_to_scale] = self.scaler.transform(X[cols_to_scale])
+                X[numerical_cols] = self.scaler.transform(X[numerical_cols])
 
-            print(f"  - Scaled {len(cols_to_scale)} numerical columns")
+            print(f"  - Scaled {len(numerical_cols)} numerical columns")
 
-        # Reconstruct dataframe
         if y is not None:
             df = pd.concat([X, y], axis=1)
         else:
@@ -188,39 +188,29 @@ class LoanDataPreprocessor:
 
     def preprocess(self, df, fit=True, scale=True, target_col='Status'):
         """
-        Main preprocessing pipeline.
-
-        Args:
-            df: Input dataframe
-            fit: Whether to fit transformers (True for train, False for test)
-            scale: Whether to scale features
-            target_col: Name of target column
-
-        Returns:
-            Preprocessed dataframe
+        Main preprocessing pipeline WITHOUT missing indicators.
         """
         print("\n" + "="*60)
-        print("STARTING PREPROCESSING PIPELINE")
+        print("PREPROCESSING PIPELINE (NO MISSING INDICATORS)")
         print("="*60)
         print(f"Initial shape: {df.shape}")
 
-        # Create a copy to avoid modifying original
         df = df.copy()
 
-        # Step 1: Create missing indicators (BEFORE imputation!)
-        df = self.create_missing_indicators(df)
-
-        # Step 2: Handle income = 0
+        # Step 1: Handle income = 0
         df = self.handle_income_zero(df)
 
-        # Step 3: Drop high-missing columns
+        # Step 2: Drop high-missing columns
         df = self.drop_high_missing_columns(df)
 
-        # Step 4: Impute numerical features
+        # Step 3: Impute numerical features
         df = self.impute_numerical(df, fit=fit)
 
-        # Step 5: Impute categorical features
+        # Step 4: Impute categorical features
         df = self.impute_categorical(df, fit=fit)
+
+        # Step 5: Create engineered features
+        df = self.create_engineered_features(df)
 
         # Step 6: Drop remaining nulls
         df = self.drop_remaining_nulls(df)
@@ -228,20 +218,20 @@ class LoanDataPreprocessor:
         # Step 7: Encode categorical variables
         df = self.encode_categorical(df, fit=fit)
 
-        # Step 8: Scale features (optional)
+        # Step 8: Scale features
         if scale:
             df = self.scale_features(df, target_col=target_col, fit=fit)
 
         print(f"\nFinal shape: {df.shape}")
         print("="*60)
-        print("PREPROCESSING COMPLETE")
+        print("PREPROCESSING COMPLETE (NO MISSING INDICATORS)")
         print("="*60 + "\n")
 
         return df
 
     def save_artifacts(self, save_dir='models'):
         """
-        Save preprocessing artifacts (scaler, medians, modes).
+        Save preprocessing artifacts.
         """
         os.makedirs(save_dir, exist_ok=True)
 
@@ -265,22 +255,11 @@ class LoanDataPreprocessor:
 def split_data(df, target_col='Status', test_size=0.2, val_size=0.1, random_state=42):
     """
     Split data into train/validation/test sets with stratification.
-
-    Args:
-        df: Preprocessed dataframe
-        target_col: Name of target column
-        test_size: Proportion for test set (default 0.2 = 20%)
-        val_size: Proportion for validation set (default 0.1 = 10%)
-        random_state: Random seed for reproducibility
-
-    Returns:
-        X_train, X_val, X_test, y_train, y_val, y_test
     """
     print("\n" + "="*60)
     print("SPLITTING DATA")
     print("="*60)
 
-    # Separate features and target
     X = df.drop(columns=[target_col, 'ID'], errors='ignore')
     y = df[target_col]
 
@@ -288,12 +267,10 @@ def split_data(df, target_col='Status', test_size=0.2, val_size=0.1, random_stat
     print(f"Features: {X.shape[1]}")
     print(f"Target distribution:\n{y.value_counts(normalize=True)}")
 
-    # Split into train+val and test
     X_temp, X_test, y_temp, y_test = train_test_split(
         X, y, test_size=test_size, random_state=random_state, stratify=y
     )
 
-    # Split train+val into train and val
     val_ratio = val_size / (1 - test_size)
     X_train, X_val, y_train, y_val = train_test_split(
         X_temp, y_temp, test_size=val_ratio, random_state=random_state, stratify=y_temp
@@ -309,23 +286,17 @@ def split_data(df, target_col='Status', test_size=0.2, val_size=0.1, random_stat
 
 def main():
     """
-    Example usage of preprocessing pipeline.
+    Run preprocessing pipeline without missing indicators.
     """
-    # Load raw data
     print("Loading raw data...")
     df = pd.read_csv('data/raw/Loan_Default.csv')
     print(f"Loaded {len(df)} rows, {len(df.columns)} columns")
 
-    # Initialize preprocessor
     preprocessor = LoanDataPreprocessor()
-
-    # Preprocess data
     df_processed = preprocessor.preprocess(df, fit=True, scale=True)
 
-    # Split data
     X_train, X_val, X_test, y_train, y_val, y_test = split_data(df_processed)
 
-    # Save processed data
     print("Saving processed data...")
     os.makedirs('data/processed', exist_ok=True)
 
@@ -338,10 +309,9 @@ def main():
 
     print("Processed data saved to data/processed/")
 
-    # Save preprocessing artifacts
     preprocessor.save_artifacts('models')
 
-    print("\n[SUCCESS] Preprocessing pipeline completed successfully!")
+    print("\n[SUCCESS] Preprocessing pipeline completed!")
 
 
 if __name__ == "__main__":

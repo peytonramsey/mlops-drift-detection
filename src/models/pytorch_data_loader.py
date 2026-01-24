@@ -124,19 +124,16 @@ class PyTorchPreprocessor:
         self.feature_names = None
         self.n_features = None
 
-    def load_artifacts(self, save_dir: str = 'models', use_indicators: bool = False):
+    def load_artifacts(self, save_dir: str = 'models'):
         """
         Load preprocessing artifacts from sklearn pipeline.
 
         Args:
             save_dir: Directory containing artifacts
-            use_indicators: Whether to load artifacts with missing indicators
         """
-        suffix = "" if use_indicators else "_no_indicators"
-
-        scaler_path = f'{save_dir}/scaler{suffix}.pkl'
-        medians_path = f'{save_dir}/numerical_medians{suffix}.pkl'
-        modes_path = f'{save_dir}/categorical_modes{suffix}.pkl'
+        scaler_path = f'{save_dir}/scaler.pkl'
+        medians_path = f'{save_dir}/numerical_medians.pkl'
+        modes_path = f'{save_dir}/categorical_modes.pkl'
 
         if os.path.exists(scaler_path):
             self.scaler = joblib.load(scaler_path)
@@ -303,7 +300,7 @@ class TensorScaler:
 
 
 def load_preprocessed_data(
-    data_dir: str = 'data/processed_no_indicators',
+    data_dir: str = 'data/processed',
     device: str = 'cpu'
 ) -> Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
     """
@@ -371,7 +368,7 @@ def main():
 
     # Load preprocessed data
     X_train, y_train, X_val, y_val, X_test, y_test = load_preprocessed_data(
-        data_dir='data/processed_no_indicators',
+        data_dir='data/processed',
         device=DEVICE
     )
 

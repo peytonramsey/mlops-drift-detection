@@ -40,12 +40,16 @@ def preprocess_for_prediction(input_data: dict, preprocessor: dict) -> pd.DataFr
     if 'dtir1' not in df.columns or pd.isna(df['dtir1'].iloc[0]) or df['dtir1'].iloc[0] is None:
         df['dtir1'] = preprocessor['numerical_medians'].get('dtir1', 39.0)
 
-    # Create engineered features
-    df['calculated_dti'] = (df['loan_amount'] / df['income']) * 100
-    df['loan_to_property'] = df['loan_amount'] / df['property_value']
-    df['income_to_property'] = df['income'] / df['property_value']
-    df['monthly_payment_est'] = df['loan_amount'] / df['term']
-    df['payment_to_income'] = df['monthly_payment_est'] / (df['income'] / 12)
+    # Create engineered features with safe division
+    income = df['income'].iloc[0] if df['income'].iloc[0] > 0 else 1
+    property_value = df['property_value'].iloc[0] if df['property_value'].iloc[0] > 0 else 1
+    term = df['term'].iloc[0] if df['term'].iloc[0] > 0 else 1
+
+    df['calculated_dti'] = (df['loan_amount'] / income) * 100
+    df['loan_to_property'] = df['loan_amount'] / property_value
+    df['income_to_property'] = income / property_value
+    df['monthly_payment_est'] = df['loan_amount'] / term
+    df['payment_to_income'] = df['monthly_payment_est'] / (income / 12)
 
     # One-hot encode categorical variables (must match training exactly!)
     categorical_cols = [
@@ -76,5 +80,8 @@ def preprocess_for_prediction(input_data: dict, preprocessor: dict) -> pd.DataFr
             result_df = pd.DataFrame(result_df_scaled, columns=result_df.columns, index=result_df.index)
         except Exception as e:
             print(f"Warning: Scaling failed: {e}")
+
+    # Replace any remaining NaN values with 0
+    result_df = result_df.fillna(0)
 
     return result_df

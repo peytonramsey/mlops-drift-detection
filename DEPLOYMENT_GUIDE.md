@@ -53,7 +53,7 @@ Copy-Item README_HF.md -Destination README.md
 
 ```bash
 # Add Hugging Face remote (replace YOUR-USERNAME)
-git remote add huggingface https://huggingface.co/spaces/YOUR-USERNAME/loan-default-prediction
+git remote add huggingface https://huggingface.co/spaces/peytonramsey/loan-default-prediction
 
 # Check current remotes
 git remote -v

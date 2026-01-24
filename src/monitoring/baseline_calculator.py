@@ -10,7 +10,7 @@ from typing import Dict, List, Any
 
 
 def calculate_baseline_statistics(
-    train_data_path: str = "data/processed_no_indicators/X_train.csv",
+    train_data_path: str = "data/processed/X_train.csv",
     output_path: str = "models/baseline_stats.json"
 ) -> Dict[str, Any]:
     """
