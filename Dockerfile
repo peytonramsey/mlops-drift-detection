@@ -25,7 +25,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project files
 COPY src/ ./src/
 COPY models/ ./models/
-COPY data/processed_no_indicators/ ./data/processed_no_indicators/
+COPY data/processed/ ./data/processed/
 
 # Create directory for database
 RUN mkdir -p /app/data
